@@ -291,7 +291,6 @@ export function HomeClient() {
                         const rect = event.currentTarget.getBoundingClientRect();
                         const parentRect =
                           event.currentTarget.parentElement?.getBoundingClientRect();
-
                         setTooltip({
                           day: cell,
                           x: rect.left - (parentRect?.left ?? 0) + rect.width / 2,
