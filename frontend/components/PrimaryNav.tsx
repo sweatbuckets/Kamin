@@ -10,6 +10,7 @@ import { contracts } from "@/config/contracts";
 const links = [
   { href: "/", label: "Home" },
   { href: "/order", label: "Order" },
+  { href: "/shop", label: "Kamin Shop" },
   { href: "/history", label: "History" },
 ];
 

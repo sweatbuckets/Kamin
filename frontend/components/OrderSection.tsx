@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { parseAbi } from "viem";
-import { useAccount, useWriteContract } from "wagmi";
+import { useAccount, usePublicClient, useWriteContract } from "wagmi";
 
 import { contracts } from "@/config/contracts";
 import {
@@ -11,16 +11,53 @@ import {
   type BrandMenuItem,
 } from "@/config/menu-catalog";
 
+const isUserRejectedError = (error: unknown) => {
+  if (!error || typeof error !== "object") {
+    return false;
+  }
+
+  const maybeError = error as {
+    code?: number;
+    message?: string;
+    shortMessage?: string;
+    details?: string;
+    cause?: unknown;
+  };
+
+  const messageParts = [
+    maybeError.message,
+    maybeError.shortMessage,
+    maybeError.details,
+    typeof maybeError.cause === "object" &&
+    maybeError.cause &&
+    "message" in maybeError.cause &&
+    typeof maybeError.cause.message === "string"
+      ? maybeError.cause.message
+      : undefined,
+  ]
+    .filter(Boolean)
+    .join(" ")
+    .toLowerCase();
+
+  return (
+    maybeError.code === 4001 ||
+    messageParts.includes("user rejected") ||
+    messageParts.includes("user denied") ||
+    messageParts.includes("rejected the request")
+  );
+};
+
 export function OrderSection({ brandKey }: { brandKey: BrandKey }) {
   const backendUrl =
     process.env.NEXT_PUBLIC_BACKEND_URL ?? "http://localhost:3001";
   const { address, isConnected } = useAccount();
   const [loading, setLoading] = useState<string | null>(null);
   const [menuItems, setMenuItems] = useState<BrandMenuItem[]>(
-    brandCatalog[brandKey].menus,
+    [...brandCatalog[brandKey].menus],
   );
   const [menuLoading, setMenuLoading] = useState(true);
   const { writeContractAsync } = useWriteContract();
+  const publicClient = usePublicClient();
 
   const brand = brandCatalog[brandKey];
 
@@ -54,7 +91,7 @@ export function OrderSection({ brandKey }: { brandKey: BrandKey }) {
       }
 
       if (!ignore) {
-        setMenuItems(brandCatalog[brandKey].menus);
+        setMenuItems([...brandCatalog[brandKey].menus]);
       }
     };
 
@@ -70,7 +107,7 @@ export function OrderSection({ brandKey }: { brandKey: BrandKey }) {
   }, [backendUrl, brandKey]);
 
   const handleOrder = async (menuName: string) => {
-    if (!address || !brand.market) return;
+    if (!address || !brand.market || !publicClient) return;
 
     try {
       setLoading(menuName);
@@ -92,7 +129,7 @@ export function OrderSection({ brandKey }: { brandKey: BrandKey }) {
       const data = await res.json();
       const { orderId, rewardAmount, signature } = data;
 
-      await writeContractAsync({
+      const txHash = await writeContractAsync({
         address: contracts.kamin as `0x${string}`,
         abi: kaminAbi,
         functionName: "confirmOrder",
@@ -105,10 +142,39 @@ export function OrderSection({ brandKey }: { brandKey: BrandKey }) {
         ],
       });
 
+      const receipt = await publicClient.waitForTransactionReceipt({
+        hash: txHash,
+      });
+
+      if (receipt.status !== "success") {
+        throw new Error("Transaction reverted");
+      }
+
+      const confirmRes = await fetch(`${backendUrl}/order/confirm`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          user: address,
+          market: brand.market,
+          menuName,
+          orderId,
+          rewardAmount,
+          txHash,
+        }),
+      });
+
+      if (!confirmRes.ok) {
+        throw new Error("Order confirmation sync failed");
+      }
+
       alert("Order success!");
     } catch (error) {
       console.error(error);
-      alert("Transaction failed");
+      if (isUserRejectedError(error)) {
+        alert("Order cancelled");
+      } else {
+        alert("Transaction failed");
+      }
     } finally {
       setLoading(null);
     }
