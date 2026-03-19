@@ -1,10 +1,18 @@
 import { BadRequestException, Injectable } from '@nestjs/common';
 import { ethers } from 'ethers';
-import { PrismaService } from '../prisma/prisma.service';
+import { BrandRepository } from '../brand/brand.repository';
+import { MenuRepository } from '../menu/menu.repository';
+import { UserRepository } from '../user/user.repository';
+import { OrderRepository } from './order.repository';
 
 @Injectable()
 export class OrderService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly brandRepository: BrandRepository,
+    private readonly menuRepository: MenuRepository,
+    private readonly orderRepository: OrderRepository,
+    private readonly userRepository: UserRepository,
+  ) {}
 
   private readonly wallet = new ethers.Wallet(process.env.PRIVATE_KEY!);
   private readonly provider = new ethers.JsonRpcProvider(process.env.SEPOLIA_RPC_URL);
@@ -17,27 +25,15 @@ export class OrderService {
       throw new BadRequestException('User address is required');
     }
 
-    const orders = await this.prisma.order.findMany({
-      where: {
-        userAddress: {
-          equals: user,
-          mode: 'insensitive',
-        },
-      },
-      include: {
-        brand: true,
-        menu: true,
-      },
-      orderBy: {
-        createdAt: 'desc',
-      },
-    });
+    const orders = await this.orderRepository.findHistoryByWalletAddress(
+      user.toLowerCase(),
+    );
 
     return {
       orders: orders.map((order) => ({
         id: order.id,
         orderId: order.orderId,
-        userAddress: order.userAddress,
+        userAddress: order.user.walletAddress,
         marketAddress: order.marketAddress,
         menuName: order.menuName,
         rewardAmount: order.rewardAmount,
@@ -57,20 +53,10 @@ export class OrderService {
     since.setHours(0, 0, 0, 0);
     since.setDate(since.getDate() - 41);
 
-    const orders = await this.prisma.order.findMany({
-      where: {
-        userAddress: {
-          equals: user,
-          mode: 'insensitive',
-        },
-        createdAt: {
-          gte: since,
-        },
-      },
-      select: {
-        createdAt: true,
-      },
-    });
+    const orders = await this.orderRepository.findGrassByWalletAddress(
+      user.toLowerCase(),
+      since,
+    );
 
     const countsByDate = new Map<string, number>();
 
@@ -106,25 +92,9 @@ export class OrderService {
       throw new BadRequestException('User address is required');
     }
 
-    const brands = await this.prisma.brand.findMany({
-      include: {
-        _count: {
-          select: {
-            orders: {
-              where: {
-                userAddress: {
-                  equals: user,
-                  mode: 'insensitive',
-                },
-              },
-            },
-          },
-        },
-      },
-      orderBy: {
-        id: 'asc',
-      },
-    });
+    const brands = await this.brandRepository.findSummaryByWalletAddress(
+      user.toLowerCase(),
+    );
 
     return {
       brands: brands.map((brand) => ({
@@ -138,19 +108,13 @@ export class OrderService {
   }
 
   async getMenus(brandKey: string) {
-    const brand = await this.prisma.brand.findUnique({
-      where: { key: brandKey },
-      include: {
-        menus: {
-          where: { isActive: true },
-          orderBy: { id: 'asc' },
-        },
-      },
-    });
+    const brand = await this.brandRepository.findWithMenusByKey(brandKey);
 
     if (!brand) {
       throw new BadRequestException('Unknown brand');
     }
+
+    const menus = await this.menuRepository.findActiveMenusByBrandId(brand.id);
 
     return {
       brand: {
@@ -158,7 +122,7 @@ export class OrderService {
         name: brand.name,
         marketAddress: brand.marketAddress,
       },
-      menus: brand.menus.map((menu) => ({
+      menus: menus.map((menu) => ({
         name: menu.name,
         description: menu.description,
         pointsCost: menu.pointsCost,
@@ -168,23 +132,10 @@ export class OrderService {
   }
 
   async createOrder(user: string, market: string, menuName: string) {
-    const brand = await this.prisma.brand.findFirst({
-      where: {
-        marketAddress: {
-          equals: market,
-          mode: 'insensitive',
-        },
-      },
-      include: {
-        menus: {
-          where: {
-            name: menuName,
-            isActive: true,
-          },
-          take: 1,
-        },
-      },
-    });
+    const brand = await this.brandRepository.findWithMenuByMarketAndName(
+      market,
+      menuName,
+    );
 
     if (!brand) {
       throw new BadRequestException('Unknown market');
@@ -227,11 +178,7 @@ export class OrderService {
       throw new BadRequestException('Transaction hash is required');
     }
 
-    const existingOrder = await this.prisma.order.findUnique({
-      where: {
-        orderId,
-      },
-    });
+    const existingOrder = await this.orderRepository.findByOrderId(orderId);
 
     if (existingOrder) {
       return {
@@ -240,23 +187,10 @@ export class OrderService {
       };
     }
 
-    const brand = await this.prisma.brand.findFirst({
-      where: {
-        marketAddress: {
-          equals: market,
-          mode: 'insensitive',
-        },
-      },
-      include: {
-        menus: {
-          where: {
-            name: menuName,
-            isActive: true,
-          },
-          take: 1,
-        },
-      },
-    });
+    const brand = await this.brandRepository.findWithMenuByMarketAndName(
+      market,
+      menuName,
+    );
 
     if (!brand) {
       throw new BadRequestException('Unknown market');
@@ -321,16 +255,20 @@ export class OrderService {
       throw new BadRequestException('Reward amount mismatch');
     }
 
-    await this.prisma.order.create({
-      data: {
-        userAddress: user,
-        marketAddress: market,
-        menuName,
-        orderId,
-        rewardAmount,
-        brandId: brand.id,
-        menuId: selectedMenu.id,
-      },
+    const normalizedAddress = user.toLowerCase();
+
+    const syncedUser = await this.userRepository.upsertByWalletAddress(
+      normalizedAddress,
+    );
+
+    await this.orderRepository.create({
+      userId: syncedUser.id,
+      marketAddress: market,
+      menuName,
+      orderId,
+      rewardAmount,
+      brandId: brand.id,
+      menuId: selectedMenu.id,
     });
 
     return {
