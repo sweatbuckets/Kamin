@@ -185,7 +185,7 @@ export function HomeClient() {
             <div className="max-w-2xl space-y-4">
               <div className="flex items-center gap-4">
                 <Image
-                  src="/logos/camin_icon.png"
+                  src="/logos/kamin.png"
                   alt="Kamin logo"
                   width={64}
                   height={64}
