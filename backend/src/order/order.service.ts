@@ -7,6 +7,10 @@ export class OrderService {
   constructor(private readonly prisma: PrismaService) {}
 
   private readonly wallet = new ethers.Wallet(process.env.PRIVATE_KEY!);
+  private readonly provider = new ethers.JsonRpcProvider(process.env.SEPOLIA_RPC_URL);
+  private readonly kaminInterface = new ethers.Interface([
+    'function confirmOrder(address market,string menuName,uint256 orderId,uint256 rewardAmount,bytes signature)',
+  ]);
 
   async getHistory(user: string) {
     if (!user) {
@@ -204,6 +208,119 @@ export class OrderService {
       ethers.getBytes(hash),
     );
 
+    return {
+      orderId,
+      rewardAmount,
+      signature,
+    };
+  }
+
+  async confirmOrder(
+    user: string,
+    market: string,
+    menuName: string,
+    orderId: number,
+    rewardAmount: number,
+    txHash: string,
+  ) {
+    if (!txHash) {
+      throw new BadRequestException('Transaction hash is required');
+    }
+
+    const existingOrder = await this.prisma.order.findUnique({
+      where: {
+        orderId,
+      },
+    });
+
+    if (existingOrder) {
+      return {
+        recorded: true,
+        orderId: existingOrder.orderId,
+      };
+    }
+
+    const brand = await this.prisma.brand.findFirst({
+      where: {
+        marketAddress: {
+          equals: market,
+          mode: 'insensitive',
+        },
+      },
+      include: {
+        menus: {
+          where: {
+            name: menuName,
+            isActive: true,
+          },
+          take: 1,
+        },
+      },
+    });
+
+    if (!brand) {
+      throw new BadRequestException('Unknown market');
+    }
+
+    const selectedMenu = brand.menus[0];
+
+    if (!selectedMenu) {
+      throw new BadRequestException('Unknown menu');
+    }
+
+    if (selectedMenu.pointsCost !== rewardAmount) {
+      throw new BadRequestException('Invalid reward amount');
+    }
+
+    const receipt = await this.provider.getTransactionReceipt(txHash);
+
+    if (!receipt || receipt.status !== 1) {
+      throw new BadRequestException('Transaction was not confirmed');
+    }
+
+    const tx = await this.provider.getTransaction(txHash);
+
+    if (!tx) {
+      throw new BadRequestException('Transaction not found');
+    }
+
+    const kaminAddress = process.env.KAMIN_ADDRESS?.toLowerCase();
+
+    if (!kaminAddress || tx.to?.toLowerCase() !== kaminAddress) {
+      throw new BadRequestException('Unexpected transaction target');
+    }
+
+    if (tx.from.toLowerCase() !== user.toLowerCase()) {
+      throw new BadRequestException('Transaction sender mismatch');
+    }
+
+    const parsed = this.kaminInterface.parseTransaction({
+      data: tx.data,
+      value: tx.value,
+    });
+
+    if (!parsed || parsed.name !== 'confirmOrder') {
+      throw new BadRequestException('Unexpected transaction payload');
+    }
+
+    const [txMarket, txMenuName, txOrderId, txRewardAmount] = parsed.args;
+
+    if (txMarket.toLowerCase() !== market.toLowerCase()) {
+      throw new BadRequestException('Market mismatch');
+    }
+
+    if (txMenuName !== menuName) {
+      throw new BadRequestException('Menu mismatch');
+    }
+
+    if (Number(txOrderId) !== orderId) {
+      throw new BadRequestException('Order ID mismatch');
+    }
+
+    if (Number(txRewardAmount) !== rewardAmount) {
+      throw new BadRequestException('Reward amount mismatch');
+    }
+
     await this.prisma.order.create({
       data: {
         userAddress: user,
@@ -217,9 +334,8 @@ export class OrderService {
     });
 
     return {
+      recorded: true,
       orderId,
-      rewardAmount,
-      signature,
     };
   }
 }

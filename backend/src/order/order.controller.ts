@@ -31,4 +31,18 @@ export class OrderController {
 
     return this.orderService.createOrder(user, market, menuName);
   }
+
+  @Post('confirm')
+  async confirm(@Body() body: any) {
+    const { user, market, menuName, orderId, rewardAmount, txHash } = body;
+
+    return this.orderService.confirmOrder(
+      user,
+      market,
+      menuName,
+      Number(orderId),
+      Number(rewardAmount),
+      txHash,
+    );
+  }
 }
