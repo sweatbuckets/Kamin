@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Image from "next/image";
 import { parseAbi } from "viem";
 import { useAccount, usePublicClient, useWriteContract } from "wagmi";
 
@@ -72,7 +73,7 @@ export function OrderSection({ brandKey }: { brandKey: BrandKey }) {
       setMenuLoading(true);
 
       try {
-        const response = await fetch(`${backendUrl}/order/menus?brand=${brandKey}`, {
+        const response = await fetch(`${backendUrl}/menus?brand=${brandKey}`, {
           cache: "no-store",
         });
 
@@ -184,9 +185,24 @@ export function OrderSection({ brandKey }: { brandKey: BrandKey }) {
     <div className="rounded-3xl border border-stone-200 bg-white p-6 shadow-sm space-y-4">
       <div>
         <p className="text-sm font-medium text-stone-500">Selected Brand</p>
-        <h2 className="mt-1 text-2xl font-semibold text-stone-950">
-          {brand.name}
-        </h2>
+        <div className="mt-2 flex items-center gap-4">
+          <div className="relative h-14 w-14 overflow-hidden rounded-2xl border border-stone-200 bg-stone-50">
+            <Image
+              src={brand.logo}
+              alt={`${brand.name} logo`}
+              fill
+              className="object-cover"
+            />
+          </div>
+          <div>
+            <h2 className="text-2xl font-semibold text-stone-950">
+              {brand.name}
+            </h2>
+            <p className="mt-1 text-sm text-stone-500">
+              Choose a menu from the selected franchise.
+            </p>
+          </div>
+        </div>
         <p className="mt-2 text-sm text-stone-500">
           Menu prices are designed to come from the backend response format.
         </p>

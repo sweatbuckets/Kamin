@@ -16,4 +16,31 @@ export class MenuRepository {
       },
     });
   }
+
+  findByBrandIdAndName(brandId: number, name: string) {
+    return this.prisma.menu.findUnique({
+      where: {
+        brandId_name: {
+          brandId,
+          name,
+        },
+      },
+    });
+  }
+
+  create(data: {
+    brandId: number;
+    name: string;
+    description: string;
+    pointsCost: number;
+    color: string;
+    isActive?: boolean;
+  }) {
+    return this.prisma.menu.create({
+      data: {
+        ...data,
+        isActive: data.isActive ?? true,
+      },
+    });
+  }
 }

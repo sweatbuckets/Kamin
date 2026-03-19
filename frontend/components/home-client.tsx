@@ -137,7 +137,7 @@ export function HomeClient() {
       }
 
       try {
-        const response = await fetch(`${backendUrl}/order/summary?user=${address}`, {
+        const response = await fetch(`${backendUrl}/brands/summary?user=${address}`, {
           cache: "no-store",
         });
 

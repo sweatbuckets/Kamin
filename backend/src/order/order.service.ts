@@ -1,24 +1,20 @@
 import { BadRequestException, Injectable } from '@nestjs/common';
 import { ethers } from 'ethers';
-import { BrandRepository } from '../brand/brand.repository';
-import { MenuRepository } from '../menu/menu.repository';
-import { UserRepository } from '../user/user.repository';
+import { BrandService } from '../brand/brand.service';
+import { OrderVerificationService } from '../order-verification/order-verification.service';
+import { UserService } from '../user/user.service';
 import { OrderRepository } from './order.repository';
 
 @Injectable()
 export class OrderService {
   constructor(
-    private readonly brandRepository: BrandRepository,
-    private readonly menuRepository: MenuRepository,
+    private readonly brandService: BrandService,
+    private readonly orderVerificationService: OrderVerificationService,
     private readonly orderRepository: OrderRepository,
-    private readonly userRepository: UserRepository,
+    private readonly userService: UserService,
   ) {}
 
   private readonly wallet = new ethers.Wallet(process.env.PRIVATE_KEY!);
-  private readonly provider = new ethers.JsonRpcProvider(process.env.SEPOLIA_RPC_URL);
-  private readonly kaminInterface = new ethers.Interface([
-    'function confirmOrder(address market,string menuName,uint256 orderId,uint256 rewardAmount,bytes signature)',
-  ]);
 
   async getHistory(user: string) {
     if (!user) {
@@ -87,52 +83,8 @@ export class OrderService {
     };
   }
 
-  async getSummary(user: string) {
-    if (!user) {
-      throw new BadRequestException('User address is required');
-    }
-
-    const brands = await this.brandRepository.findSummaryByWalletAddress(
-      user.toLowerCase(),
-    );
-
-    return {
-      brands: brands.map((brand) => ({
-        key: brand.key,
-        name: brand.name,
-        marketAddress: brand.marketAddress,
-        logoPath: brand.logoPath,
-        orderCount: brand._count.orders,
-      })),
-    };
-  }
-
-  async getMenus(brandKey: string) {
-    const brand = await this.brandRepository.findWithMenusByKey(brandKey);
-
-    if (!brand) {
-      throw new BadRequestException('Unknown brand');
-    }
-
-    const menus = await this.menuRepository.findActiveMenusByBrandId(brand.id);
-
-    return {
-      brand: {
-        key: brand.key,
-        name: brand.name,
-        marketAddress: brand.marketAddress,
-      },
-      menus: menus.map((menu) => ({
-        name: menu.name,
-        description: menu.description,
-        pointsCost: menu.pointsCost,
-        color: menu.color,
-      })),
-    };
-  }
-
   async createOrder(user: string, market: string, menuName: string) {
-    const brand = await this.brandRepository.findWithMenuByMarketAndName(
+    const brand = await this.brandService.findWithMenuByMarketAndName(
       market,
       menuName,
     );
@@ -174,10 +126,6 @@ export class OrderService {
     rewardAmount: number,
     txHash: string,
   ) {
-    if (!txHash) {
-      throw new BadRequestException('Transaction hash is required');
-    }
-
     const existingOrder = await this.orderRepository.findByOrderId(orderId);
 
     if (existingOrder) {
@@ -187,7 +135,7 @@ export class OrderService {
       };
     }
 
-    const brand = await this.brandRepository.findWithMenuByMarketAndName(
+    const brand = await this.brandService.findWithMenuByMarketAndName(
       market,
       menuName,
     );
@@ -206,58 +154,18 @@ export class OrderService {
       throw new BadRequestException('Invalid reward amount');
     }
 
-    const receipt = await this.provider.getTransactionReceipt(txHash);
-
-    if (!receipt || receipt.status !== 1) {
-      throw new BadRequestException('Transaction was not confirmed');
-    }
-
-    const tx = await this.provider.getTransaction(txHash);
-
-    if (!tx) {
-      throw new BadRequestException('Transaction not found');
-    }
-
-    const kaminAddress = process.env.KAMIN_ADDRESS?.toLowerCase();
-
-    if (!kaminAddress || tx.to?.toLowerCase() !== kaminAddress) {
-      throw new BadRequestException('Unexpected transaction target');
-    }
-
-    if (tx.from.toLowerCase() !== user.toLowerCase()) {
-      throw new BadRequestException('Transaction sender mismatch');
-    }
-
-    const parsed = this.kaminInterface.parseTransaction({
-      data: tx.data,
-      value: tx.value,
+    await this.orderVerificationService.verifyConfirmedOrder({
+      user,
+      market,
+      menuName,
+      orderId,
+      rewardAmount,
+      txHash,
     });
-
-    if (!parsed || parsed.name !== 'confirmOrder') {
-      throw new BadRequestException('Unexpected transaction payload');
-    }
-
-    const [txMarket, txMenuName, txOrderId, txRewardAmount] = parsed.args;
-
-    if (txMarket.toLowerCase() !== market.toLowerCase()) {
-      throw new BadRequestException('Market mismatch');
-    }
-
-    if (txMenuName !== menuName) {
-      throw new BadRequestException('Menu mismatch');
-    }
-
-    if (Number(txOrderId) !== orderId) {
-      throw new BadRequestException('Order ID mismatch');
-    }
-
-    if (Number(txRewardAmount) !== rewardAmount) {
-      throw new BadRequestException('Reward amount mismatch');
-    }
 
     const normalizedAddress = user.toLowerCase();
 
-    const syncedUser = await this.userRepository.upsertByWalletAddress(
+    const syncedUser = await this.userService.findOrCreateByWalletAddress(
       normalizedAddress,
     );
 
