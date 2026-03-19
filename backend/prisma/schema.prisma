@@ -13,7 +13,7 @@ datasource db {
 
 model Order {
   id            Int      @id @default(autoincrement())
-  userAddress   String
+  userId        Int
   marketAddress String
   menuName      String
   orderId       Int      @unique
@@ -22,8 +22,16 @@ model Order {
   menuId        Int?
   createdAt     DateTime @default(now())
 
+  user  User   @relation(fields: [userId], references: [id], onDelete: Restrict)
   brand Brand? @relation(fields: [brandId], references: [id])
   menu  Menu?  @relation(fields: [menuId], references: [id])
+}
+
+model User {
+  id            Int      @id @default(autoincrement())
+  walletAddress String   @unique
+  createdAt     DateTime @default(now())
+  orders        Order[]
 }
 
 model Brand {

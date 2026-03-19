@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { parseAbi } from "viem";
@@ -22,6 +23,8 @@ const erc20Abi = parseAbi([
 export function PrimaryNav() {
   const pathname = usePathname();
   const { address, isConnected } = useAccount();
+  const backendUrl =
+    process.env.NEXT_PUBLIC_BACKEND_URL ?? "http://localhost:3001";
 
   const { data: balance } = useReadContract({
     address: contracts.kamin,
@@ -47,6 +50,22 @@ export function PrimaryNav() {
       ? new Intl.NumberFormat("ko-KR").format(Number(balance))
       : "0";
   const pointsUnit = symbol ?? "KAMIN";
+
+  useEffect(() => {
+    if (!address) {
+      return;
+    }
+
+    void fetch(`${backendUrl}/users/login`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        walletAddress: address,
+      }),
+    }).catch((error) => {
+      console.error("Failed to sync user login", error);
+    });
+  }, [address, backendUrl]);
 
   return (
     <nav className="sticky top-0 z-40 border-b border-stone-200/80 bg-[#faf7f2]/90 backdrop-blur">
