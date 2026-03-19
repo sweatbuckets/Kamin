@@ -53,7 +53,7 @@ export function OrderSection({ brandKey }: { brandKey: BrandKey }) {
   const { address, isConnected } = useAccount();
   const [loading, setLoading] = useState<string | null>(null);
   const [menuItems, setMenuItems] = useState<BrandMenuItem[]>(
-    brandCatalog[brandKey].menus,
+    [...brandCatalog[brandKey].menus],
   );
   const [menuLoading, setMenuLoading] = useState(true);
   const { writeContractAsync } = useWriteContract();
@@ -91,7 +91,7 @@ export function OrderSection({ brandKey }: { brandKey: BrandKey }) {
       }
 
       if (!ignore) {
-        setMenuItems(brandCatalog[brandKey].menus);
+        setMenuItems([...brandCatalog[brandKey].menus]);
       }
     };
 
