@@ -3,6 +3,7 @@ import { contracts } from "@/config/contracts";
 export const brandCatalog = {
   starbucks: {
     name: "Starbucks",
+    logo: "/logos/starbucks.png",
     market: contracts.starbucksMarket,
     menus: [
       {
@@ -21,6 +22,7 @@ export const brandCatalog = {
   },
   twosome: {
     name: "Twosome",
+    logo: "/logos/twosome.png",
     market: contracts.twosomeMarket,
     menus: [
       {
@@ -39,6 +41,7 @@ export const brandCatalog = {
   },
   mega: {
     name: "Mega",
+    logo: "/logos/mega.png",
     market: contracts.megaMarket,
     menus: [
       {
@@ -57,6 +60,7 @@ export const brandCatalog = {
   },
   hollys: {
     name: "Hollys",
+    logo: "/logos/hollys.png",
     market: contracts.hollysMarket,
     menus: [
       {

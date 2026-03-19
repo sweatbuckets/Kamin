@@ -5,6 +5,10 @@ import { UserRepository } from './user.repository';
 export class UserService {
   constructor(private readonly userRepository: UserRepository) {}
 
+  findOrCreateByWalletAddress(walletAddress: string) {
+    return this.userRepository.upsertByWalletAddress(walletAddress.toLowerCase());
+  }
+
   async login(walletAddress: string) {
     if (!walletAddress) {
       throw new BadRequestException('Wallet address is required');
@@ -12,9 +16,8 @@ export class UserService {
 
     const normalizedAddress = walletAddress.toLowerCase();
 
-    const existingUser = await this.userRepository.findByWalletAddress(
-      normalizedAddress,
-    );
+    const existingUser =
+      await this.userRepository.findByWalletAddress(normalizedAddress);
 
     if (existingUser) {
       return {
