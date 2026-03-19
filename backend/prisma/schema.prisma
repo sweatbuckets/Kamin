@@ -1,0 +1,52 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Get a free hosted Postgres database in seconds: `npx create-db`
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model Order {
+  id            Int      @id @default(autoincrement())
+  userAddress   String
+  marketAddress String
+  menuName      String
+  orderId       Int      @unique
+  rewardAmount  Int
+  brandId       Int?
+  menuId        Int?
+  createdAt     DateTime @default(now())
+
+  brand Brand? @relation(fields: [brandId], references: [id])
+  menu  Menu?  @relation(fields: [menuId], references: [id])
+}
+
+model Brand {
+  id            Int     @id @default(autoincrement())
+  key           String  @unique
+  name          String
+  marketAddress String  @unique
+  logoPath      String?
+  menus         Menu[]
+  orders        Order[]
+}
+
+model Menu {
+  id          Int     @id @default(autoincrement())
+  brandId     Int
+  name        String
+  description String
+  pointsCost  Int
+  color       String
+  isActive    Boolean @default(true)
+
+  brand  Brand   @relation(fields: [brandId], references: [id], onDelete: Cascade)
+  orders Order[]
+
+  @@unique([brandId, name])
+}
