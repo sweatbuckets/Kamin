@@ -1,6 +1,7 @@
 # Kamin
 
 > One wallet, every cafe spend in one view.
+<img width="2480" height="1652" alt="image" src="https://github.com/user-attachments/assets/8068d096-4312-4976-bf9d-520073ac7a04" />
 
 Kamin은 여러 프랜차이즈 카페에 흩어진 주문 기록과 소비 데이터를 한곳으로 모아 보여주는 카페 소비 aggregator입니다. 사용자는 브랜드별 앱을 오가며 내역을 확인하지 않아도, Kamin에서 자신의 카페 소비 흐름을 통합적으로 관리할 수 있습니다.
 
