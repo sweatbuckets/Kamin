@@ -4,6 +4,13 @@ export const brandCatalog = {
   starbucks: {
     name: "Starbucks",
     logo: "/logos/starbucks.png",
+    theme: {
+      panel: "bg-green-700",
+      subtle: "bg-green-50",
+      accent: "text-green-900",
+      chip: "bg-green-100 text-green-900",
+      action: "bg-green-900 text-white",
+    },
     market: contracts.starbucksMarket,
     menus: [
       {
@@ -23,6 +30,13 @@ export const brandCatalog = {
   twosome: {
     name: "Twosome",
     logo: "/logos/twosome.png",
+    theme: {
+      panel: "bg-rose-700",
+      subtle: "bg-rose-50",
+      accent: "text-rose-950",
+      chip: "bg-rose-100 text-rose-900",
+      action: "bg-rose-900 text-white",
+    },
     market: contracts.twosomeMarket,
     menus: [
       {
@@ -42,6 +56,13 @@ export const brandCatalog = {
   mega: {
     name: "Mega",
     logo: "/logos/mega.png",
+    theme: {
+      panel: "bg-yellow-400",
+      subtle: "bg-yellow-50",
+      accent: "text-yellow-950",
+      chip: "bg-yellow-100 text-yellow-900",
+      action: "bg-yellow-900 text-white",
+    },
     market: contracts.megaMarket,
     menus: [
       {
@@ -61,6 +82,13 @@ export const brandCatalog = {
   hollys: {
     name: "Hollys",
     logo: "/logos/hollys.png",
+    theme: {
+      panel: "bg-stone-700",
+      subtle: "bg-stone-100",
+      accent: "text-stone-950",
+      chip: "bg-stone-200 text-stone-900",
+      action: "bg-stone-900 text-white",
+    },
     market: contracts.hollysMarket,
     menus: [
       {

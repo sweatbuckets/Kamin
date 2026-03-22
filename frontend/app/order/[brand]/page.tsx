@@ -22,9 +22,12 @@ export default async function BrandOrderPage({
       <div className="mx-auto flex w-full max-w-5xl flex-col gap-6">
         <Link
           href="/order"
-          className="w-fit rounded-full border border-stone-300 bg-white px-4 py-2 text-sm font-medium text-stone-700 transition hover:border-stone-400 hover:text-stone-950"
+          className="flex w-fit items-center gap-2 rounded-full border border-stone-300 bg-white px-4 py-2 text-sm font-medium text-stone-700 transition hover:border-stone-400 hover:text-stone-950"
         >
-          Back to brands
+          <span aria-hidden="true" className="text-base leading-none">
+            ←
+          </span>
+          <span>Back to brands</span>
         </Link>
 
         <OrderSection brandKey={brandKey} />
