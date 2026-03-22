@@ -12,6 +12,42 @@ import {
   type BrandMenuItem,
 } from "@/config/menu-catalog";
 
+const brandImagePrefix: Record<BrandKey, string> = {
+  starbucks: "sb",
+  twosome: "ts",
+  mega: "mg",
+  hollys: "hs",
+};
+
+const menuImageKeyMap: Partial<Record<BrandKey, Record<string, string>>> = {
+  starbucks: {
+    americano: "americano",
+    latte: "latte",
+  },
+  twosome: {
+    latte: "latte",
+    mocha: "mocca",
+  },
+  mega: {
+    coffee: "coffe",
+    vanilla: "vanilla",
+    vanillalatte: "vanilla",
+  },
+  hollys: {
+    americano: "americano",
+    vanilla: "vanilla",
+    vanilladelight: "vanilla",
+  },
+};
+
+const getMenuImageSrc = (brandKey: BrandKey, menuName: string) => {
+  const normalizedName = menuName.toLowerCase().replace(/[^a-z]/g, "");
+  const mappedName =
+    menuImageKeyMap[brandKey]?.[normalizedName] ?? normalizedName;
+
+  return `/menus/${brandImagePrefix[brandKey]}${mappedName}.png`;
+};
+
 const isUserRejectedError = (error: unknown) => {
   if (!error || typeof error !== "object") {
     return false;
@@ -182,10 +218,11 @@ export function OrderSection({ brandKey }: { brandKey: BrandKey }) {
   };
 
   return (
-    <div className="rounded-3xl border border-stone-200 bg-white p-6 shadow-sm space-y-4">
+    <div
+      className={`${brand.theme.panel} rounded-3xl border border-stone-200 p-6 shadow-sm space-y-4 text-white`}
+    >
       <div>
-        <p className="text-sm font-medium text-stone-500">Selected Brand</p>
-        <div className="mt-2 flex items-center gap-4">
+        <div className="flex items-center gap-4">
           <div className="relative h-14 w-14 overflow-hidden rounded-2xl border border-stone-200 bg-stone-50">
             <Image
               src={brand.logo}
@@ -195,19 +232,11 @@ export function OrderSection({ brandKey }: { brandKey: BrandKey }) {
             />
           </div>
           <div>
-            <h2 className="text-2xl font-semibold text-stone-950">
-              {brand.name}
-            </h2>
-            <p className="mt-1 text-sm text-stone-500">
-              Choose a menu from the selected franchise.
-            </p>
+            <h2 className="text-2xl font-semibold text-white">{brand.name}</h2>
           </div>
         </div>
-        <p className="mt-2 text-sm text-stone-500">
-          Menu prices are designed to come from the backend response format.
-        </p>
         {!brand.market ? (
-          <p className="mt-2 text-sm font-medium text-amber-700">
+          <p className="mt-2 text-sm font-medium text-amber-100">
             Contract address is not configured yet. Orders are currently unavailable.
           </p>
         ) : null}
@@ -215,39 +244,62 @@ export function OrderSection({ brandKey }: { brandKey: BrandKey }) {
 
       <div className="space-y-3">
         <div className="flex items-center justify-between gap-3">
-          <p className="text-sm font-medium text-stone-500">Menu Board</p>
           {menuLoading && (
-            <p className="text-xs font-medium text-stone-400">Loading menus...</p>
+            <p className="text-xs font-medium text-white/60">Loading menus...</p>
           )}
         </div>
 
-        <div className="grid gap-3 md:grid-cols-2">
+        <div className="flex flex-col gap-3">
           {menuItems.map((menu) => (
             <button
               key={`${brandKey}-${menu.name}`}
               onClick={() => handleOrder(menu.name)}
               disabled={!isConnected || !brand.market || loading === menu.name}
-              className={`${menu.color} rounded-xl p-4 text-left text-white disabled:cursor-not-allowed disabled:opacity-60`}
+              className="rounded-2xl bg-white text-left text-stone-950 shadow-sm transition hover:shadow-md disabled:cursor-not-allowed disabled:opacity-60"
             >
-              <div className="flex items-start justify-between gap-4">
-                <div>
-                  <p className="text-lg font-semibold">{menu.name}</p>
-                  <p className="mt-1 text-sm text-white/80">
-                    {menu.description}
-                  </p>
+              <div className="flex items-stretch gap-4 p-4">
+                <div className={`relative h-28 w-28 shrink-0 overflow-hidden rounded-2xl ${menu.color}`}>
+                  <Image
+                    src={getMenuImageSrc(brandKey, menu.name)}
+                    alt={`${menu.name} image`}
+                    fill
+                    className="object-cover"
+                  />
                 </div>
-                <div className="rounded-full bg-white/15 px-3 py-1 text-sm font-semibold">
-                  {menu.pointsCost} pt
+
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <p className="truncate text-lg font-semibold text-stone-950">
+                        {menu.name}
+                      </p>
+                      <p className="mt-1 line-clamp-2 text-sm text-stone-500">
+                        {menu.description}
+                      </p>
+                    </div>
+                    <div className={`shrink-0 rounded-full px-3 py-1 text-sm font-semibold ${brand.theme.chip}`}>
+                      {menu.pointsCost} pt
+                    </div>
+                  </div>
+
+                  <div className="mt-4 flex items-center justify-between gap-3">
+                    <p className="text-sm text-stone-500">{brand.name}</p>
+                    <span
+                      className={`rounded-full px-5 py-3 text-sm font-semibold transition ${brand.theme.action} ${
+                        !brand.market || loading === menu.name
+                          ? "opacity-80"
+                          : "hover:brightness-75"
+                      }`}
+                    >
+                      {!brand.market
+                        ? "Coming Soon"
+                        : loading === menu.name
+                          ? "Ordering..."
+                          : "주문하기"}
+                    </span>
+                  </div>
                 </div>
               </div>
-              <p className="mt-4 text-sm text-white/80">{brand.name}</p>
-              <p className="mt-2 text-sm font-medium">
-                {!brand.market
-                  ? "Coming Soon"
-                  : loading === menu.name
-                    ? "Ordering..."
-                    : "Confirm Order"}
-              </p>
             </button>
           ))}
         </div>
