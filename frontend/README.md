@@ -1,5 +1,8 @@
 # Frontend
 
+> One wallet, every cafe spend in one view.
+<img width="2480" height="1652" alt="image" src="https://github.com/user-attachments/assets/8068d096-4312-4976-bf9d-520073ac7a04" />
+
 카페 리워드 dApp의 Next.js 프론트엔드입니다.
 
 ## 주요 기능
