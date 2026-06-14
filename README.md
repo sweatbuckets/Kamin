@@ -1,7 +1,8 @@
 # Kamin
 
 > One wallet, every cafe spend in one view.
-<img width="2480" height="1652" alt="image" src="https://github.com/user-attachments/assets/8068d096-4312-4976-bf9d-520073ac7a04" />
+
+<img src="./frontend/public/fig/home.png" alt="Kamin home screen" />
 
 Kamin은 여러 프랜차이즈 카페에 흩어진 주문 기록과 소비 데이터를 한곳으로 모아 보여주는 카페 소비 aggregator입니다. 사용자는 브랜드별 앱을 오가며 내역을 확인하지 않아도, Kamin에서 자신의 카페 소비 흐름을 통합적으로 관리할 수 있습니다.
 
@@ -42,41 +43,17 @@ Kamin의 장기 목표는 단순한 카페 주문 서비스가 아니라, 분산
 
 ```mermaid
 flowchart LR
-    U[User]
-    FE[Frontend<br/>Next.js + wagmi + RainbowKit]
-    BE[Backend<br/>NestJS + Prisma]
-    DB[(PostgreSQL)]
+    User["User Wallet"]
+    Frontend["Frontend<br/>Next.js"]
+    Backend["Backend<br/>NestJS"]
+    Database[("PostgreSQL")]
+    Contracts["Sepolia Contracts<br/>Kamin + CafeMarket"]
 
-    subgraph CHAIN[Sepolia]
-        K[Kamin Contract]
-        M[CafeMarket Contracts<br/>Starbucks / Twosome / Mega / Hollys]
-    end
-
-    U -->|wallet connect / order request| FE
-    FE -->|GET menus / history / grass / summary| BE
-    BE -->|read / write| DB
-    BE -->|orderId, rewardAmount, signature| FE
-    FE -->|confirmOrder| K
-    K -->|recordOrder| M
-    K -->|mint KAMIN| U
+    User --> Frontend
+    Frontend --> Backend
+    Backend --> Database
+    Frontend --> Contracts
+    Contracts --> User
 ```
 
-## Order Flow
-
-```mermaid
-sequenceDiagram
-    participant U as User
-    participant FE as Frontend
-    participant BE as Backend
-    participant DB as PostgreSQL
-    participant K as Kamin
-    participant M as CafeMarket
-
-    U->>FE: 주문 요청
-    FE->>BE: POST /order
-    BE->>DB: 주문 저장
-    BE-->>FE: orderId, rewardAmount, signature
-    FE->>K: confirmOrder
-    K->>M: recordOrder
-    K-->>U: KAMIN mint
-```
+주문 흐름은 `Frontend -> Backend -> Frontend -> Contracts` 순서입니다. 백엔드는 주문을 저장하고 서명을 생성하며, 프론트엔드는 그 서명으로 컨트랙트의 `confirmOrder`를 호출합니다.
